@@ -21,8 +21,8 @@ typedef struct {
 
     int win_w;
     int win_h;
-    double zoom;       /* 0.0 = fit to window, >0 = explicit zoom factor */
-    double pan_x;      /* screen-space offset in pixels */
+    double zoom;
+    double pan_x;
     double pan_y;
 
     gboolean dragging;
@@ -66,7 +66,6 @@ static void clamp_pan_locked(App *app, int area_w, int area_h, double scale) {
     double disp_w = ow * scale;
     double disp_h = oh * scale;
 
-    /* Allow panning at any zoom, keeping at least 64px of the image inside viewport */
     double margin_x = (disp_w > 128.0) ? (disp_w * 0.5 - 64.0) : (disp_w * 0.5);
     if (margin_x < 0.0) margin_x = 0.0;
     double max_x = area_w * 0.5 + margin_x;
@@ -110,7 +109,7 @@ static gboolean on_canvas_draw(GtkWidget *widget, cairo_t *cr, App *app) {
     if (area_w <= 1) area_w = app->win_w;
     if (area_h <= 1) area_h = app->win_h;
 
-    cairo_set_source_rgb(cr, 0.094, 0.094, 0.094); /* #181818 */
+    cairo_set_source_rgb(cr, 0.094, 0.094, 0.094);
     cairo_paint(cr);
 
     g_mutex_lock(&app->lock);
@@ -129,17 +128,20 @@ static gboolean on_canvas_draw(GtkWidget *widget, cairo_t *cr, App *app) {
 
     double disp_w = ow * scale;
     double disp_h = oh * scale;
-    double x = (area_w - disp_w) * 0.5 + pan_x;
-    double y = (area_h - disp_h) * 0.5 + pan_y;
+    double x = round((area_w - disp_w) * 0.5 + pan_x);
+    double y = round((area_h - disp_h) * 0.5 + pan_y);
 
     cairo_save(cr);
     cairo_translate(cr, x, y);
     cairo_scale(cr, scale, scale);
-    gdk_cairo_set_source_pixbuf(cr, orig, 0.0, 0.0);
+    cairo_rectangle(cr, 0.0, 0.0, ow, oh);
+    cairo_clip(cr);
 
+    gdk_cairo_set_source_pixbuf(cr, orig, 0.0, 0.0);
     cairo_pattern_t *pat = cairo_get_source(cr);
     if (pat) {
-        cairo_pattern_set_filter(pat, scale > 1.5 ? CAIRO_FILTER_NEAREST : CAIRO_FILTER_BILINEAR);
+        cairo_pattern_set_filter(pat, CAIRO_FILTER_BILINEAR);
+        cairo_pattern_set_extend(pat, CAIRO_EXTEND_NONE);
     }
 
     cairo_paint(cr);
